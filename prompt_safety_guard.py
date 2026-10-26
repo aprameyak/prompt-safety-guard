@@ -45,14 +45,14 @@ class Layer1InputValidation:
         if not text:
             return False, "Empty input", ["empty"]
         if len(text) > self.max_length:
-            return False, "Too long", ["length"]
+            return False, "Too long", ["length_check"]
         if len(text.split()) > self.max_tokens:
-            return False, "Too many tokens", ["tokens"]
+            return False, "Too many tokens", ["token_check"]
 
         triggered = []
         for pattern, name in self.compiled_patterns:
             if pattern.search(text):
-                triggered.append(name)
+                triggered.append(f"blocked_pattern:{name}")
         return (False, "Blocked patterns", triggered) if triggered else (True, "OK", [])
 
     def sanitize(self, text: str) -> str:
@@ -71,7 +71,7 @@ class Layer2PromptBoundaries:
             (re.compile(r"forget.*previous", re.IGNORECASE), "forget"),
             (re.compile(r"pretend.*you.*are", re.IGNORECASE), "pretend"),
             (re.compile(r"role\s*play", re.IGNORECASE), "roleplay"),
-            (re.compile(r"act\s*as\s*(?!a\s+(?:expert|professional))", re.IGNORECASE), "act_as"),
+            (re.compile(r"\bact\s+as\b(?!\s+an?\s+(?:expert|professional))", re.IGNORECASE), "act_as"),
             (re.compile(r"you.*now.*different", re.IGNORECASE), "different"),
             (re.compile(r"new\s*mode", re.IGNORECASE), "new_mode"),
             (re.compile(r"without.*safety", re.IGNORECASE), "no_safety"),
@@ -84,6 +84,9 @@ class Layer2PromptBoundaries:
         triggered = [marker[:-1] for marker in self.system_markers if marker in text]
         triggered.extend(name for pattern, name in self.jailbreak_patterns if pattern.search(text))
         return bool(triggered), triggered
+
+    def add_boundary_markers(self, text: str) -> str:
+        return f"[USER_INPUT_START]\n{text}\n[USER_INPUT_END]"
 
 
 class Layer3OutputFiltering:
@@ -146,7 +149,7 @@ class Layer4ToolConstraints:
             triggered.append("extra")
         for val in args.values():
             if isinstance(val, str) and self.blocked_operations_pattern.search(val):
-                triggered.append("blocked")
+                triggered.append("blocked_operation")
                 break
 
         return not triggered, "OK" if not triggered else "Failed", triggered

@@ -71,7 +71,7 @@ Each layer is independent and can be configured:
 
 ```python
 guard.layer1.max_length = 5000
-guard.layer1.blocked_patterns.append(r"custom pattern")
+guard.layer1.compiled_patterns.append((re.compile(r"custom pattern", re.IGNORECASE), "custom"))
 
 guard.layer4.register_function("safe_func", {
     "required": ["arg1"],
